@@ -10,14 +10,14 @@ import           Lib
 main :: IO ()
 main = hspec spec
 
-newtype Iterations = Iterations Int
+newtype Iterations = Iterations Word
   deriving Show
 
 instance Arbitrary Iterations where
-  arbitrary = Iterations . abs <$> arbitrary
+  arbitrary = Iterations . (+100) . abs <$> arbitrary
   shrink (Iterations i) = fmap Iterations (shrink i)
 
-newtype ConcurrencyLevel = ConcurrencyLevel Int
+newtype ConcurrencyLevel = ConcurrencyLevel Word
   deriving Show
 
 instance Arbitrary ConcurrencyLevel where
@@ -43,39 +43,42 @@ spec = describe "simple tests" $ do
         threads = 20
     ref1 <- newIORef 1
     ref2 <- newIORef 1
-    let withThreadsAndIterations f = forConcurrently [1..threads] $ replicateM iterations . f
+    let runConcurrently = withThreadsAndIterations threads iterations
 
-    actualAtomic    <- withThreadsAndIterations $ atomicModifyIORef ref1 . f
-    notReallyAtomic <- withThreadsAndIterations $ notReallyAtomicModifyIORef ref2 . f
+    actualAtomic    <- runConcurrently $ atomicModifyIORef ref1 . f
+    notReallyAtomic <- runConcurrently $ notReallyAtomicModifyIORef ref2 . f
     notReallyAtomic `shouldBe` actualAtomic
 
   it "fails when we pound it hard, but with a property" $ do
-    property $ \(Iterations iterations, ConcurrencyLevel threads) -> do
+    property $ \(ConcurrencyLevel threads, Iterations iterations) -> do
       let f incr x = (x+incr, x)
-      let withThreadsAndIterations f = forConcurrently [1..threads] $ replicateM iterations . f
+      let runConcurrently = withThreadsAndIterations threads iterations
 
       ref1 <- newIORef 1
       ref2 <- newIORef 1
 
-      actualAtomic    <- withThreadsAndIterations $ atomicModifyIORef ref1 . f
-      notReallyAtomic <- withThreadsAndIterations $ notReallyAtomicModifyIORef ref2 . f
+      actualAtomic    <- runConcurrently $ atomicModifyIORef ref1 . f
+      notReallyAtomic <- runConcurrently $ notReallyAtomicModifyIORef ref2 . f
       notReallyAtomic `shouldBe` actualAtomic
 
 
   it "property fails all of 10 attempts" $ do
-    property $ \(Iterations iterations, ConcurrencyLevel threads) -> do
+    property $ \(ConcurrencyLevel threads, Iterations iterations) -> do
       let f incr x = (x+incr, x)
       let trials = 10
-      let withThreadsAndIterations f = forConcurrently [1..threads] $ replicateM iterations . f
+      let runConcurrently = withThreadsAndIterations threads iterations
 
       ref1 <- newIORef 1
       ref2 <- newIORef 1
 
       actualAtomic    <- forM [1..trials] $ \_ ->
-        withThreadsAndIterations $ atomicModifyIORef ref1 . f
+        runConcurrently $ atomicModifyIORef ref1 . f
       notReallyAtomic <- forM [1..trials] $ \_ ->
-        withThreadsAndIterations $ notReallyAtomicModifyIORef ref2 . f
+        runConcurrently $ notReallyAtomicModifyIORef ref2 . f
 
       -- we fail only if _every_ run fails.
       (head actualAtomic, or (zipWith (==) actualAtomic notReallyAtomic))
         `shouldBe` (head notReallyAtomic, True)
+
+
+withThreadsAndIterations threads iterations f = forConcurrently [1..threads] $ replicateM (fromIntegral iterations) . f
