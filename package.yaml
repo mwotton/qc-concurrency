@@ -1,0 +1,26 @@
+name:                qc-concurrency
+version:             0.1.0.0
+synopsis:            Demo for blog post
+homepage:            https://github.com/mwotton/qc-concurrency#readme
+license:             BSD3
+author:              Mark Wotton
+maintainer:          mwotton@gmail.com
+copyright:           2019 Mark Wotton
+category:            Testing
+extra-source-files:
+- README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+  - hspec
+  - QuickCheck
+library:
+  source-dirs: src
+
+tests:
+  qc-concurrency-test:
+    source-dirs:      test
+    main:             Main.hs
+    dependencies:
+      - qc-concurrency
+      - async
