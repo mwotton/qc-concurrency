@@ -15,14 +15,14 @@ newtype Iterations = Iterations Word
 
 instance Arbitrary Iterations where
   arbitrary = Iterations . (+100) . abs <$> arbitrary
-  shrink (Iterations i) = fmap Iterations (shrink i)
+  shrink (Iterations i) = Iterations <$> shrink i
 
 newtype ConcurrencyLevel = ConcurrencyLevel Word
   deriving Show
 
 instance Arbitrary ConcurrencyLevel where
   arbitrary = ConcurrencyLevel . abs <$> arbitrary
-  shrink (ConcurrencyLevel i) = fmap ConcurrencyLevel (shrink i)
+  shrink (ConcurrencyLevel i) = ConcurrencyLevel <$> shrink i
 
 spec = describe "simple tests" $ do
   it "gets the same result in a single thread" $ do
